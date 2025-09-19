@@ -2,7 +2,10 @@ name: Laravel CI
 
 on:
   push:
-    branches: ["master", "develop"]
+    # Yazım hatası düzeltildi
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
 
 jobs:
   laravel-tests:
@@ -11,29 +14,21 @@ jobs:
     services:
       pgsql:
         image: postgres:15-alpine
-        # DÜZELTME: Servisin başlamasını beklemek için healthcheck eklendi
-        healthcheck:
-          test: ["CMD", "pg_isready", "-q", "-d", "laravel_test", "-U", "sail"]
-          timeout: 5s
-          retries: 10
         env:
           POSTGRES_DB: laravel_test
           POSTGRES_USER: sail
           POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
         ports:
           - 5432:5432
+        # DÜZELTME: 'healthcheck:' bloğu kaldırıldı. Sağlık kontrolü 'options' içinde zaten tanımlı.
         options: >-
           --health-cmd="pg_isready -q -d laravel_test -U sail" --health-interval=10s --health-timeout=5s --health-retries=3
 
       redis:
         image: redis:alpine
-        # DÜZELTME: Servisin başlamasını beklemek için healthcheck eklendi
-        healthcheck:
-          test: ["CMD", "redis-cli", "ping"]
-          timeout: 5s
-          retries: 10
         ports:
           - 6379:6379
+        # DÜZELTME: 'healthcheck:' bloğu kaldırıldı. Sağlık kontrolü 'options' içinde zaten tanımlı.
         options: >-
           --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=3
 
