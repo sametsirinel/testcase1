@@ -10,6 +10,11 @@ class Article extends Model
 {
     use HasUuids;
 
+    protected $fillable = [
+        "title",
+        "body"
+    ];
+
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class);
