@@ -2,9 +2,7 @@ name: Laravel CI
 
 on:
   push:
-    branches: ["main", "develop"]
-  pull_request:
-    branches: ["main", "develop"]
+    branches: ["naster", "develop"]
 
 jobs:
   laravel-tests:
@@ -21,10 +19,61 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd="pg_isready -q -d laravel_test -U sail" --health-interval=10s --health-timeout=5s --health-retries=3
-
       redis:
         image: redis:alpine
         ports:
           - 6379:6379
         options: >-
           --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, pdo_pgsql, redis
+          coverage: xdebug
+
+      - name: Get composer cache directory
+        id: composer-cache
+        run: |
+          echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install Composer dependencies
+        run: composer install --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Setup .env file
+        run: |
+          cp .env.example .env
+          echo "DB_CONNECTION=pgsql" >> .env
+          echo "DB_HOST=127.0.0.1" >> .env
+          echo "DB_PORT=5432" >> .env
+          echo "DB_DATABASE=laravel_test" >> .env
+          echo "DB_USERNAME=sail" >> .env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+          echo "REDIS_HOST=127.0.0.1" >> .env
+          echo "REDIS_PORT=6379" >> .env
+          echo "CACHE_DRIVER=redis" >> .env
+          echo "QUEUE_CONNECTION=redis" >> .env
+
+      - name: Generate application key
+        run: php artisan key:generate
+
+      - name: Run database migrations and seeders
+        run: php artisan migrate --seed
+
+      - name: Run tests (Pest)
+        run: vendor/bin/pest
+
+      - name: Check code style with Laravel Pint
+        run: vendor/bin/pint --test
